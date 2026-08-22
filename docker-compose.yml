@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  # ─────────────────────────────────────────
+  # Base de datos MySQL 8
+  # ─────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: tallerdae_mysql
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    # Puerto NO expuesto al host — MySQL solo es accesible dentro de tallerdae_net
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d   # scripts SQL opcionales de inicialización
+    networks:
+      - tallerdae_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────
+  # Servidor web / reverse proxy Nginx
+  # ─────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: tallerdae_nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+      - ./nginx/logs:/var/log/nginx              # logs accesibles desde el host
+    networks:
+      - tallerdae_net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+# ─────────────────────────────────────────
+# Volúmenes y redes
+# ─────────────────────────────────────────
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  tallerdae_net:
+    driver: bridge

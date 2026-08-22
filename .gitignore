@@ -1,0 +1,11 @@
+# Credenciales — nunca commitear
+.env
+
+# Datos persistentes de MySQL (si montas el volumen localmente)
+mysql/data/
+
+# Logs de Nginx
+nginx/logs/*.log
+
+# Logs generales
+*.log
